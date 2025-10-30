@@ -31,42 +31,6 @@ job "traefik" {
       }
     }
 
-    # this task will get cert/key from nomad kv store and write to local file system for traefik to use
-    task "load-certs" {
-      driver = "exec"
-
-      config {
-        command = "/bin/sh"
-        args    = ["local/load-certs.sh"]
-      }
-
-      lifecycle {
-        hook = "prestart"
-        sidecar = false
-      }
-
-
-      template {
-        data = <<EOH
-{{ range nomadVarListSafe "tls" }}
-filedir={{ env "NOMAD_ALLOC_DIR" }}/{{ .Path }}
-mkdir -p $filedir
-{{ with nomadVar .Path }}
-echo "{{ .cert }}" > $filedir/cert.crt
-echo "{{ .key }}" > $filedir/priv.key
-echo "{{ .ca }}" > $filedir/ca.crt
-{{ end }}
-{{ end }}
-EOH
-        destination = "local/load-certs.sh"
-      }
-
-      resources {
-        cpu    = 10
-        memory = 10
-      }
-    }
-
     task "traefik" {
       driver = "docker"
 
@@ -82,6 +46,25 @@ EOH
           "http",
           "https"
         ]
+
+        # run the load-certs script before starting traefik
+        entrypoint = ["/bin/sh", "-c"]
+        args = ["sh local/load-certs.sh && traefik"]
+      }
+
+      template {
+        data = <<EOH
+{{ range nomadVarListSafe "tls" }}
+filedir=local/{{ .Path }}
+mkdir -p $filedir
+{{ with nomadVar .Path }}
+echo "{{ .cert }}" > $filedir/cert.crt
+echo "{{ .key }}" > $filedir/priv.key
+echo "{{ .ca }}" > $filedir/ca.crt
+{{ end }}
+{{ end }}
+EOH
+        destination = "local/load-certs.sh"
       }
 
       template {
@@ -122,9 +105,9 @@ providers:
       scheme: "https"
       token: "{{ env "TRAEFIK_CONSUL_CATALOG_TOKEN" }}"
       tls:
-        ca: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/ca.crt
-        cert: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/cert.crt
-        key: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/priv.key
+        ca: local/tls/clients/consul/ca.crt
+        cert: local/tls/clients/consul/cert.crt
+        key: local/tls/clients/consul/priv.key
   file:
     directory: /etc/traefik
     watch: true
@@ -168,22 +151,24 @@ http:
   serversTransports:
     nomad:
       rootCAs:
-        - {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/nomad/ca.crt
+        - local/tls/clients/nomad/ca.crt
       certificates:
-        - certFile: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/nomad/cert.crt
-          keyFile: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/nomad/priv.key
+        - certFile: local/tls/clients/nomad/cert.crt
+          keyFile: local/tls/clients/nomad/priv.key
     consul:
       rootCAs:
-        - {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/ca.crt
+        - local/tls/clients/consul/ca.crt
       certificates:
-        - certFile: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/cert.crt
-          keyFile: {{ env "NOMAD_ALLOC_DIR" }}/tls/clients/consul/priv.key
+        - certFile: local/tls/clients/consul/cert.crt
+          keyFile: local/tls/clients/consul/priv.key
 
+{{- if nomadVarList "tls/domains" }}
 tls:
   certificates:
-{{- range nomadVarListSafe "tls/domains" }}
-    - certFile: {{ env "NOMAD_ALLOC_DIR" }}/{{ .Path }}/cert.crt
-      keyFile: {{ env "NOMAD_ALLOC_DIR" }}/{{ .Path }}/priv.key
+{{- range nomadVarList "tls/domains" }}
+    - certFile: local/{{ .Path }}/cert.crt
+      keyFile: local/{{ .Path }}/priv.key
+{{- end }}
 {{- end }}
 EOF
             destination = "local/dynamic.yml"
