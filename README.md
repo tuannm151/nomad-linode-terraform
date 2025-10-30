@@ -41,7 +41,7 @@ The infrastructure consists of:
 ```bash
 # Homebrew (macOS/Linux)
 brew install terraform nomad consul
-
+```
 ### Linode API Tokens
 
 You need two Linode API tokens:
