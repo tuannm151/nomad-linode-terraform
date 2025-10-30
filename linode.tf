@@ -113,7 +113,7 @@ You can access Consul UI at https://${module.linode_nomad_cluster.load_balancer_
 ## To run a TLS proxy:
 make start-proxy
 
-Access Consul UI at http://localhost:8501 and Nomad UI at http://localhost:4646
+Access Consul UI at http://127.0.0.1:8501 and Nomad UI at http://127.0.0.1:4646
 
 ## Stop TLS proxy with:
 make stop-proxy
