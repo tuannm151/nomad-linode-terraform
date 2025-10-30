@@ -1,0 +1,42 @@
+http:
+  routers:
+    nomad:
+      rule: Host(`127.0.0.1`)
+      service: nomad
+      entryPoints:
+        - nomad
+    consul:
+      rule: Host(`127.0.0.1`)
+      service: consul
+      entryPoints:
+        - consul
+  services:
+    nomad:
+      loadBalancer:
+        servers:
+          {{- range $index, $element := splitList "," (env "SERVER_ADDRS") }}
+          - url: "https://{{ $element }}:4646"
+          {{- end }}
+        serversTransport: nomad
+    consul:
+      loadBalancer:
+        servers:
+          {{- range $index, $element := splitList "," (env "SERVER_ADDRS") }}
+          - url: "https://{{ $element }}:8501"
+          {{- end }}
+        serversTransport: consul
+  serversTransports:
+    nomad:
+      insecureSkipVerify: true
+      rootCAs:
+        - "/etc/traefik/certs/nomad_ca.pem"
+      certificates:
+        - certFile: "/etc/traefik/certs/nomad_cli.crt"
+          keyFile: "/etc/traefik/certs/nomad_cli.key"
+    consul:
+      insecureSkipVerify: true
+      rootCAs:
+        - "/etc/traefik/certs/consul_ca.pem"
+      certificates:
+        - certFile: "/etc/traefik/certs/consul_cli.crt"
+          keyFile: "/etc/traefik/certs/consul_cli.key"

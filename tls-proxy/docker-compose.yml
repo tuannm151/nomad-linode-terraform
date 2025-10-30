@@ -1,0 +1,15 @@
+services:
+  traefik:
+    image: traefik:3
+    container_name: traefik-nomad-consul-proxy
+    ports:
+      - "4646:4646"
+      - "8501:8501"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # For Docker provider (optional)
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro    # Static configuration
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro    # Dynamic configuration
+      - ../certs:/etc/traefik/certs:ro               # Certificates for mTLS
+    restart: always
+    environment:
+      - SERVER_ADDRS=$SERVER_ADDRS

@@ -1,0 +1,9 @@
+entryPoints:
+  nomad:
+    address: ":4646"
+  consul:
+    address: ":8501"
+providers:
+  file:
+    directory: "/etc/traefik"
+    watch: true
